@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101417">
+  <title>Quiet Exit — 3D Open-World Survival</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #edf0e9;
+      --muted: #a4aca8;
+      --panel: rgba(18, 24, 25, .88);
+      --line: rgba(214, 225, 214, .18);
+      --gold: #e7bd72;
+      --teal: #8dc8be;
+      --red: #e77a6d;
+      --green: #9dc897;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { color: var(--ink); background: #151a1a; font: 14px/1.5 "Segoe UI", Arial, sans-serif; letter-spacing: 0; }
+    button { color: inherit; font: inherit; }
+    #game { position: fixed; inset: 0; }
+    #game canvas { display: block; width: 100%; height: 100%; }
+    .hud { position: fixed; z-index: 2; pointer-events: none; }
+    .hud-card { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 12px 36px #0005; backdrop-filter: blur(12px); }
+    #top-left { top: 18px; left: 18px; width: min(405px, calc(100vw - 36px)); padding: 14px 17px; }
+    .brand { color: var(--gold); font-size: .73rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+    .brand span { color: #aab4ae !important; }
+    #chapter-label { margin-top: 7px; color: var(--teal); font-size: .68rem; font-weight: 800; letter-spacing: .08em; }
+    #objective-title { margin: 7px 0 2px; color: #f1d79a; font-size: .92rem; font-weight: 700; }
+    #objective-text { margin: 0; color: #c3cbc4; font-size: .82rem; }
+    #top-right { top: 18px; right: 18px; width: 238px; padding: 13px; }
+    .district { display: flex; justify-content: space-between; margin-bottom: 9px; color: #e5e9e1; font-size: .7rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+    #map { display: block; width: 100%; height: 122px; border: 1px solid #ffffff24; border-radius: 4px; background: #17201f; }
+    .meter { margin-top: 9px; }
+    .meter-head { display: flex; justify-content: space-between; margin-bottom: 4px; color: #c5cec7; font-size: .72rem; font-weight: 600; }
+    .track { height: 5px; overflow: hidden; border-radius: 4px; background: #ffffff20; }
+    .fill { height: 100%; width: 0; transition: width .15s linear; }
+    #health-fill { background: var(--green); }
+    #heat-fill { background: var(--red); }
+    #police-fill { background: var(--gold); }
+    #wallet { margin-top: 10px; color: var(--gold); font-size: .78rem; font-weight: 750; }
+    #weapon-status { margin-top: 5px; color: #d7ddd4; font-size: .72rem; }
+    #campaign-status { margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font-size: .71rem; }
+    #campaign-status strong { color: var(--ink); font-weight: 650; }
+    #prompt { left: 50%; bottom: 25px; transform: translateX(-50%); padding: 9px 13px; border: 1px solid var(--line); border-radius: 6px; color: #fff0c8; background: rgba(18, 24, 25, .86); box-shadow: 0 5px 20px #0005; font-size: .84rem; font-weight: 650; white-space: nowrap; backdrop-filter: blur(8px); }
+    #prompt:empty { display: none; }
+    .key { display: inline-grid; min-width: 22px; height: 22px; margin-right: 5px; place-items: center; border: 1px solid #ffffff40; border-radius: 4px; background: #151c1de8; color: #ffe4a3; font-size: .72rem; font-weight: 700; }
+    #facing { top: 18px; left: 50%; display: flex; align-items: center; gap: 9px; transform: translateX(-50%); padding: 7px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); box-shadow: 0 5px 20px #0005; color: var(--gold); font-size: .68rem; font-weight: 750; letter-spacing: .05em; white-space: nowrap; backdrop-filter: blur(8px); }
+    #facing-arrow { display: inline-block; color: #ffe4a3; font-size: 1.25rem; line-height: 1; }
+    #facing-direction { min-width: 24px; color: #fff0c7; }
+    #toast { top: 166px; left: 50%; transform: translateX(-50%); max-width: min(500px, calc(100vw - 34px)); padding: 9px 13px; border: 1px solid var(--teal); border-radius: 6px; color: #e5eee9; background: var(--panel); box-shadow: 0 5px 20px #0005; font-size: .8rem; text-align: center; }
+    #toast:empty { display: none; }
+    #dialogue-wrap, #title-screen, #ending-screen, #loading-screen { position: fixed; z-index: 5; inset: 0; display: grid; place-items: center; padding: 20px; background: #090e10b8; }
+    #dialogue-wrap.hidden, #ending-screen.hidden, #loading-screen.hidden { display: none; }
+    .dialogue, .title-card, .ending-card, .loading-card { width: min(570px, 100%); padding: clamp(24px, 5vw, 42px); border: 1px solid var(--line); border-radius: 10px; background: #182022f2; box-shadow: 0 25px 80px #0008; backdrop-filter: blur(14px); }
+    .eyebrow { margin: 0 0 8px; color: var(--teal); font-size: .72rem; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; }
+    h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 500; line-height: 1.05; }
+    h1 { margin: 0 0 14px; font-size: clamp(2.7rem, 8vw, 5.3rem); }
+    h2 { margin: 0 0 13px; font-size: clamp(2rem, 5vw, 3rem); }
+    .title-card p, .dialogue p, .ending-card p { color: #c5cec7; }
+    .title-card .lede { max-width: 490px; font-size: 1rem; }
+    .controls-note { margin: 19px 0 24px; color: var(--muted); font-size: .82rem; }
+    .action, .dialogue-option { width: 100%; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; transition: background .16s ease, border-color .16s ease; }
+    .action { width: auto; min-height: 46px; padding: 10px 18px; border: 1px solid #f4d28d; color: #1b201d; background: var(--gold); box-shadow: 0 4px 12px #0004; font-weight: 800; }
+    .action:hover { background: #f0ce84; }
+    .action:focus-visible, .dialogue-option:focus-visible, #close-dialogue:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+    .dialogue-options { display: grid; gap: 9px; margin-top: 20px; }
+    .dialogue-option { padding: 13px 15px; background: #202a2b; text-align: left; }
+    .dialogue-option:hover { border-color: var(--teal); background: #293637; }
+    .dialogue-option strong { display: block; color: var(--gold); font-weight: 750; }
+    .dialogue-option span { color: var(--muted); font-size: .82rem; }
+    #close-dialogue { margin-top: 13px; padding: 5px 0; border: 0; color: var(--muted); background: transparent; cursor: pointer; font-family: inherit; }
+    #close-dialogue:hover { color: var(--ink); }
+    #crosshair { position: fixed; z-index: 2; top: 50%; left: 50%; width: 5px; height: 5px; background: #fff9; box-shadow: 0 0 0 2px #18141c; pointer-events: none; }
+    #touch-controls { position: fixed; z-index: 3; right: 16px; bottom: 18px; display: none; gap: 8px; align-items: end; pointer-events: auto; }
+    .touch-pad { display: grid; grid-template-columns: repeat(3, 43px); grid-template-rows: repeat(2, 43px); gap: 5px; }
+    .touch-pad button, #touch-interact { border: 1px solid #ffffff50; border-radius: 7px; background: #152020e8; color: #ffe4a3; box-shadow: 0 4px 12px #0005; touch-action: none; font-family: inherit; }
+    .touch-pad button { font-size: 1rem; }
+    .touch-actions { display: grid; gap: 5px; }
+    #touch-interact, #touch-punch, #touch-fire { min-height: 43px; padding: 0 10px; font-size: .72rem; font-weight: 750; }
+    .touch-pad [data-dir="forward"] { grid-column: 2; }
+    .touch-pad [data-dir="left"] { grid-row: 2; grid-column: 1; }
+    .touch-pad [data-dir="back"] { grid-row: 2; grid-column: 2; }
+    .touch-pad [data-dir="right"] { grid-row: 2; grid-column: 3; }
+    #touch-interact { min-height: 43px; padding: 0 12px; font-weight: 750; }
+    #loading-screen { z-index: 10; }
+    #loading-screen.hidden { display: none; }
+    #loading-screen p { color: var(--muted); }
+    #ending-screen { z-index: 6; }
+    .ending-card { text-align: center; }
+    .ending-card p { max-width: 460px; margin: 0 auto 22px; }
+
+    @media (max-width: 680px) {
+      #top-left { top: 10px; left: 10px; width: min(340px, calc(100vw - 20px)); padding: 9px 10px; }
+      #top-right { top: 118px; right: 10px; width: 166px; padding: 8px; }
+      #facing { top: 126px; left: 10px; right: auto; transform: none; padding: 6px 8px; font-size: .59rem; }
+      #map { height: 84px; }
+      .district { margin-bottom: 6px; font-size: .65rem; }
+      .meter { margin-top: 6px; }
+      #campaign-status { margin-top: 7px; padding-top: 6px; font-size: .65rem; }
+      #prompt { bottom: 148px; max-width: calc(100vw - 26px); white-space: normal; text-align: center; }
+      #toast { top: auto; bottom: 215px; }
+      #touch-controls { display: flex; }
+      #crosshair { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div id="game" aria-label="Interactive 3D game world"></div>
+  <div id="crosshair" aria-hidden="true"></div>
+  <div id="facing" class="hud" aria-label="Movement direction">
+    <span id="facing-arrow" aria-hidden="true">▲</span>
+    <span id="facing-direction">N</span>
+    <span>W / FORWARD</span>
+  </div>
+  <section id="top-left" class="hud hud-card" aria-live="polite">
+    <div class="brand">Quiet Exit <span style="color:#9ba69f">/ 3 CHAPTER STORY</span></div>
+    <div id="chapter-label">CHAPTER 1 · CARTEL TRUST</div>
+    <div id="objective-title">Your next move</div>
+    <p id="objective-text">Find Mateo near the market.</p>
+  </section>
+  <aside id="top-right" class="hud hud-card" aria-label="Player status">
+    <div class="district"><span>Chicago · The Loop</span><span id="clock">23:16</span></div>
+    <canvas id="map" width="380" height="240" aria-label="District minimap"></canvas>
+    <div class="meter"><div class="meter-head"><span>Condition</span><span id="health-value">100%</span></div><div class="track"><div class="fill" id="health-fill"></div></div></div>
+    <div class="meter"><div class="meter-head"><span>Cartel heat</span><span id="heat-value">0%</span></div><div class="track"><div class="fill" id="heat-fill"></div></div></div>
+    <div class="meter"><div class="meter-head"><span>Police attention</span><span id="police-value">0%</span></div><div class="track"><div class="fill" id="police-fill"></div></div></div>
+    <div id="wallet">Cash $<span id="credits-value">180</span></div>
+    <div id="weapon-status">Unarmed · visit the armory</div>
+    <div id="campaign-status">Mission <strong id="mission-count">0 / 10</strong><br>Home <strong id="home-status">None</strong></div>
+  </aside>
+  <div id="toast" class="hud hud-card" role="status" aria-live="polite"></div>
+  <div id="prompt" class="hud"></div>
+  <div id="dialogue-wrap" class="hidden">
+    <section class="dialogue" role="dialog" aria-modal="true" aria-labelledby="dialogue-name">
+      <p class="eyebrow" id="dialogue-role">CONTACT</p>
+      <h2 id="dialogue-name">Contact</h2>
+      <p id="dialogue-text"></p>
+      <div id="dialogue-options" class="dialogue-options"></div>
+      <button id="close-dialogue" type="button">Close conversation <span class="key">Esc</span></button>
+    </section>
+  </div>
+  <div id="title-screen">
+    <section class="title-card">
+      <p class="eyebrow">A third-person open-world survival thriller</p>
+      <h1>Quiet Exit</h1>
+      <p class="lede">Earn your place in the cartel through ten jobs. Then walk away, make an honest living while they hunt you, and face Don Hector in one final mission. Your story ends on a quiet beach at sunset.</p>
+      <p class="controls-note"><strong>W / S</strong> move · <strong>A / D</strong> turn · <strong>E</strong> interact · <strong>F</strong> punch · <strong>Space / left-click</strong> fire · <strong>R</strong> reload · <strong>Shift</strong> run · <strong>Esc</strong> close.</p>
+      <button id="start-button" class="action" type="button">Enter the district →</button>
+    </section>
+  </div>
+  <div id="ending-screen" class="hidden">
+    <section class="ending-card">
+      <p class="eyebrow" id="ending-eyebrow">CASE CLOSED</p>
+      <h2 id="ending-title">You made it out.</h2>
+      <p id="ending-text"></p>
+      <button id="restart-button" class="action" type="button">Play again ↻</button>
+    </section>
+  </div>
+  <div id="loading-screen">
+    <section class="loading-card">
+      <p class="eyebrow">INITIALIZING</p>
+      <h2>Building the district…</h2>
+      <p id="loading-message">Loading the world renderer.</p>
+    </section>
+  </div>
+  <div id="touch-controls" aria-label="Touch controls">
+    <div class="touch-pad">
+      <button type="button" data-dir="forward" aria-label="Move forward">▲</button>
+      <button type="button" data-dir="left" aria-label="Turn left">◀</button>
+      <button type="button" data-dir="back" aria-label="Move backward">▼</button>
+      <button type="button" data-dir="right" aria-label="Turn right">▶</button>
+    </div>
+    <div class="touch-actions">
+      <button id="touch-interact" type="button">TALK</button>
+      <button id="touch-punch" type="button">PUNCH</button>
+      <button id="touch-fire" type="button">FIRE</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script>
+    (() => {
+      const loading = document.getElementById("loading-screen");
+      const loadingMessage = document.getElementById("loading-message");
+      if (!window.THREE) {
+        loadingMessage.textContent = "The 3D renderer could not be loaded. Check your internet connection, then refresh.";
+        return;
+      }
+
+      const THREE = window.THREE;
+      const game = document.getElementById("game");
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x758993);
+      scene.fog = new THREE.Fog(0x758993, 92, 245);
+      const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 280);
+      const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.12;
+      game.appendChild(renderer.domElement);
+
+      scene.add(new THREE.HemisphereLight(0xc9d8d1, 0x323a32, 2.0));
+      const moon = new THREE.DirectionalLight(0xf4d9a1, 2.25);
+      moon.position.set(-35, 58, 24);
+      moon.castShadow = true;
+      moon.shadow.mapSize.set(1536, 1536);
+      moon.shadow.camera.left = -80;
+      moon.shadow.camera.right = 80;
+      moon.shadow.camera.top = 80;
+      moon.shadow.camera.bottom = -80;
+      scene.add(moon);
+
+      const mats = {};
+      function material(name, color, roughness = 0.9, extra = {}) {
+        mats[name] = new THREE.MeshStandardMaterial({ color, roughness, ...extra });
+        return mats[name];
+      }
+      material("asphalt", 0x303738);
+      material("roadline", 0xceb975);
+      material("sidewalk", 0x77786f);
+      material("ground", 0x424846);
+      material("brick", 0x79574a);
+      material("stucco", 0x91816c);
+      material("concrete", 0x656c6c);
+      material("bluePaint", 0x45646d);
+      material("window", 0x263b45, 0.34, { emissive: 0xc98d4e, emissiveIntensity: 0.42 });
+      material("glass", 0x243b48, 0.25, { metalness: 0.38 });
+      material("roof", 0x353c3e);
+      material("leaf", 0x384d3d);
+      material("trunk", 0x564738);
+      material("metal", 0x69716c, 0.4, { metalness: 0.55 });
+      material("gold", 0xd5ad5d, 0.48, { emissive: 0x563916, emissiveIntensity: 0.3 });
+      material("bullet", 0xffd77e, 0.35, { emissive: 0xff9d3d, emissiveIntensity: 1.6 });
+      material("gun", 0x2a3031, 0.42, { metalness: 0.45 });
+      material("skin", 0xbb8b6a);
+      material("hair", 0x302722);
+      material("shoe", 0x242a2a, 0.72);
+      material("shirtLight", 0xe0ded0);
+      material("player", 0x405e61);
+      material("pants", 0x293337);
+      material("nurse", 0xb7c9bd);
+      material("contact", 0x9b7856);
+      material("agent", 0x39464d);
+      material("cartel", 0x782f32);
+      material("police", 0x354968);
+      material("civilian", 0x77765d);
+      material("lamp", 0xe7bd75, 0.3, { emissive: 0xe7a94a, emissiveIntensity: 2.5 });
+      material("headlight", 0xffe6a8, 0.28, { emissive: 0xffd47a, emissiveIntensity: 2.2 });
+      material("taillight", 0xc74738, 0.32, { emissive: 0x9b211b, emissiveIntensity: 1.1 });
+
+      const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+      const sphereGeo = new THREE.SphereGeometry(1, 12, 10);
+      const cylinderGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
+      const obstacles = [];
+      const interactables = [];
+      const npcs = [];
+      const traffic = [];
+      const trafficSignals = [];
+      const weaponCatalog = {
+        pistol: { name: "Compact Sidearm", price: 120, damage: 52, magazine: 12, range: 32, cooldown: 0.42, reserve: 24 },
+        smg: { name: "Pulse SMG", price: 260, damage: 29, magazine: 24, range: 25, cooldown: 0.16, reserve: 48 }
+      };
+      const campaignChapters = [
+        {
+          title: "Cartel Trust",
+          missions: [
+            { title: "First Run", reward: 280, description: "Move a sealed package without asking what is inside.", steps: [
+              { name: "Package pickup", x: 0, z: -28, task: "Pick up the sealed package.", mode: "interact" },
+              { name: "Drop point", x: 32, z: -33, task: "Deliver the package to the drop point.", mode: "interact" }
+            ] },
+            { title: "Proof of Loyalty", reward: 360, description: "Photograph a rival's meeting and bring the picture to Mateo.", steps: [
+              { name: "Rival's meeting", x: 0, z: 30, task: "Photograph the rival at the meeting.", mode: "interact" },
+              { name: "Photo client", x: -30, z: 30, task: "Deliver the photo to your client.", mode: "interact" }
+            ] },
+            { title: "The Take", reward: 420, description: "Rob a stash house and bring the cash back to the crew.", steps: [
+              { name: "Stash house", x: -30, z: -30, task: "Rob the stash house and take the cash.", mode: "interact" },
+              { name: "Crew drop", x: 0, z: 30, task: "Hand the take to the crew.", mode: "interact" }
+            ] },
+            { title: "A Rival's Warning", reward: 460, description: "Take out a rival enforcer who is threatening the route.", steps: [
+              { name: "Rival lookout", x: 30, z: 0, task: "Deal with the rival enforcer.", mode: "kill", enemy: "Rival Enforcer" }
+            ] },
+            { title: "After-Hours Job", reward: 500, description: "Hit a backroom cash stash and leave before anyone notices.", steps: [
+              { name: "Backroom stash", x: -40, z: 0, task: "Rob the backroom stash.", mode: "interact" }
+            ] },
+            { title: "Long Lens", reward: 520, description: "Photograph a courier and pass the image to the cartel.", steps: [
+              { name: "Courier sighting", x: 0, z: 38, task: "Photograph the courier.", mode: "interact" },
+              { name: "Photo handoff", x: 32, z: -33, task: "Give the photo to your contact.", mode: "interact" }
+            ] },
+            { title: "Lost Shipment", reward: 560, description: "Recover a missing package and return it to the crew.", steps: [
+              { name: "Missing package", x: 40, z: -30, task: "Recover the missing package.", mode: "interact" },
+              { name: "Return shipment", x: 0, z: 30, task: "Return the shipment to the crew.", mode: "interact" }
+            ] },
+            { title: "Cut the Tail", reward: 620, description: "Stop the rival who has been following the cartel's couriers.", steps: [
+              { name: "Rival tail", x: -40, z: 0, task: "Stop the rival tail.", mode: "kill", enemy: "Rival Tail" }
+            ] },
+            { title: "The Books", reward: 680, description: "Steal a ledger that proves you can be trusted with sensitive work.", steps: [
+              { name: "Ledger stash", x: 0, z: -28, task: "Steal the cartel ledger.", mode: "interact" },
+              { name: "Ledger handoff", x: 32, z: -33, task: "Deliver the ledger to the crew.", mode: "interact" }
+            ] },
+            { title: "Core Member", reward: 900, description: "Defeat the rival crew's captain and earn a place at the cartel's inner table.", steps: [
+              { name: "Rival captain", x: 0, z: 38, task: "Defeat the rival captain.", mode: "kill", enemy: "Rival Captain" }
+            ] }
+          ]
+        },
+        {
+          title: "The Civilian Life",
+          missions: [
+            { title: "First Honest Paycheck", reward: 380, description: "Deliver a late-night meal for a neighborhood diner.", steps: [
+              { name: "Diner delivery", x: -30, z: -30, task: "Pick up the meal.", mode: "interact" },
+              { name: "Customer's door", x: 0, z: 30, task: "Deliver the meal and collect your pay.", mode: "interact" }
+            ] },
+            { title: "A Neighbor's Favor", reward: 440, description: "Find a lost work bag and return it to its owner.", steps: [
+              { name: "Lost work bag", x: 40, z: -30, task: "Find the missing work bag.", mode: "interact" },
+              { name: "Owner's home", x: 32, z: -33, task: "Return the bag to its owner.", mode: "interact" }
+            ] },
+            { title: "The Mechanic's Shift", reward: 500, description: "Collect parts for a local garage and bring them back.", steps: [
+              { name: "Parts pickup", x: -40, z: 0, task: "Collect the garage parts.", mode: "interact" },
+              { name: "Garage counter", x: 0, z: 30, task: "Deliver the parts and get paid.", mode: "interact" }
+            ] },
+            { title: "Proof for the Lawyer", reward: 580, description: "Photograph the crew watching your new home and pass the proof to a lawyer.", steps: [
+              { name: "Cartel watcher", x: 30, z: 0, task: "Photograph the cartel watcher.", mode: "interact" },
+              { name: "Law office", x: -30, z: 30, task: "Deliver the photo to the lawyer.", mode: "interact" }
+            ] },
+            { title: "Protect the Block", reward: 700, description: "Drive off the cartel crew threatening the neighborhood.", steps: [
+              { name: "Cartel crew", x: 40, z: 30, task: "Defeat the cartel enforcer.", mode: "kill", enemy: "Cartel Enforcer" }
+            ] },
+            { title: "One Last Delivery", reward: 820, description: "Finish one clean courier job before the cartel finds you.", steps: [
+              { name: "Courier pickup", x: 0, z: -28, task: "Collect the final civilian delivery.", mode: "interact" },
+              { name: "Safe delivery", x: 32, z: -33, task: "Complete the delivery and collect your pay.", mode: "interact" }
+            ] }
+          ]
+        },
+        {
+          title: "The Last Order",
+          missions: [
+            { title: "Don Hector", reward: 0, description: "Confront the cartel's Don and end the hunt for good.", steps: [
+              { name: "Hector's hideout", x: 30, z: -30, task: "Defeat Don Hector.", mode: "kill", enemy: "Hector" }
+            ] }
+          ]
+        }
+      ];
+      const homeCatalog = [
+        { id: "studio", name: "Canal Street Studio", price: 450, description: "A small, secure first place." },
+        { id: "rowhouse", name: "Brick Rowhouse", price: 800, description: "A modest home with room to settle in." },
+        { id: "loft", name: "West Loop Loft", price: 1200, description: "An airy loft above the old market." },
+        { id: "townhouse", name: "Garden Townhouse", price: 1650, description: "A quiet townhouse with a private courtyard." },
+        { id: "lakeside", name: "Lakeside House", price: 2200, description: "A spacious home near the water." }
+      ];
+      const state = { health: 100, heat: 0, police: 0, credits: 180, weapon: null, ammo: 0, reserve: 0, running: false, isRunning: false, started: false, ended: false, objective: "Find Mateo near the market.", objectiveTitle: "Your next move", chapter: 1, missionIndex: 0, missionStep: 0, missionStarted: false, enemySpawned: false, awaitingHome: false, home: null, fireCooldown: 0, punchCooldown: 0, attackPose: 0 };
+      const keys = new Set();
+      const clock = new THREE.Clock();
+      const player = new THREE.Group();
+      let playerRig = null;
+      const effects = [];
+      let heldWeapon = null;
+      let yaw = 0;
+      let cameraYaw = 0;
+      const cameraPitch = 0.22;
+      let activeDialogue = false;
+      let lastInteractable = null;
+      let toastTimer = 0;
+      let beachEnding = false;
+
+      function addMesh(geo, mat, parent, x, y, z, sx = 1, sy = 1, sz = 1, cast = true, receive = true) {
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, y, z);
+        mesh.scale.set(sx, sy, sz);
+        mesh.castShadow = cast;
+        mesh.receiveShadow = receive;
+        parent.add(mesh);
+        return mesh;
+      }
+
+      function addBox(parent, x, y, z, sx, sy, sz, mat, cast = true) {
+        return addMesh(boxGeo, mat, parent, x, y, z, sx, sy, sz, cast);
+      }
+
+      function addLabel(text, color = "#f4d28d") {
+        const canvas = document.createElement("canvas");
+        canvas.width = 512;
+        canvas.height = 128;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "rgba(10,15,16,.84)";
+        ctx.beginPath();
+        ctx.roundRect(12, 18, 488, 92, 22);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(225,220,194,.5)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.font = "700 36px Segoe UI, Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, 256, 65, 455);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
+        sprite.scale.set(5.2, 1.3, 1);
+        return sprite;
+      }
+
+      function addGround() {
+        const ground = addMesh(new THREE.PlaneGeometry(260, 260), mats.ground, scene, 0, -0.15, 0, 1, 1, 1, false);
+        ground.rotation.x = -Math.PI / 2;
+        for (const axis of [-36, 0, 36]) {
+          addBox(scene, axis, -0.06, 0, 9.5, 0.08, 145, mats.asphalt, false);
+          addBox(scene, 0, -0.055, axis, 145, 0.08, 9.5, mats.asphalt, false);
+          for (let z = -66; z <= 66; z += 13) addBox(scene, axis + 0.25, 0.005, z, 0.12, 0.015, 5.4, mats.roadline, false);
+          for (let x = -66; x <= 66; x += 13) addBox(scene, x, 0.005, axis + 0.25, 5.4, 0.015, 0.12, mats.roadline, false);
+        }
+        const roadToward = value => {
+          const nearestRoad = [-36, 0, 36].reduce((nearest, axis) =>
+            Math.abs(axis - value) < Math.abs(nearest - value) ? axis : nearest
+          );
+          return Math.sign(nearestRoad - value);
+        };
+        for (const x of [-43, -29, -7, 7, 29, 43]) {
+          addBox(scene, x, -0.02, 0, 2.6, 0.18, 150, mats.sidewalk, false);
+          addBox(scene, x + roadToward(x) * 1.4, 0.015, 0, 0.18, 0.16, 150, mats.concrete, false);
+        }
+        for (const z of [-43, -29, -7, 7, 29, 43]) {
+          addBox(scene, 0, -0.02, z, 150, 0.18, 2.6, mats.sidewalk, false);
+          addBox(scene, 0, 0.015, z + roadToward(z) * 1.4, 150, 0.16, 0.18, mats.concrete, false);
+        }
+      }
+
+      function addBuilding(x, z, width, depth, height, mat, name) {
+        const group = new THREE.Group();
+        group.position.set(x, 0, z);
+        scene.add(group);
+        addBox(group, 0, height / 2, 0, width, height, depth, mat);
+        addBox(group, 0, height + 0.22, 0, width + 0.4, 0.42, depth + 0.4, mats.roof);
+        const frontZ = depth / 2 + 0.02;
+        if (height > 20) {
+          const floors = Math.floor((height - 3) / 3.3);
+          for (let floor = 0; floor < floors; floor++) {
+            const y = 2.7 + floor * 3.3;
+            const bandHeight = 1.75;
+            for (const side of [-1, 1]) {
+              addBox(group, 0, y, side * (depth / 2 + 0.025), width - 0.9, bandHeight, 0.08, mats.glass, false);
+              addBox(group, side * (width / 2 + 0.025), y, 0, 0.08, bandHeight, depth - 0.9, mats.glass, false);
+            }
+          }
+          for (const side of [-1, 1]) {
+            for (let pier = -1; pier <= 1; pier++) {
+              addBox(group, pier * width / 3, height / 2, side * (depth / 2 + 0.08), 0.22, height - 1, 0.14, mats.concrete, false);
+              addBox(group, side * (width / 2 + 0.08), height / 2, pier * depth / 3, 0.14, height - 1, 0.22, mats.concrete, false);
+            }
+          }
+          addBox(group, 0, height + 1.2, 0, width * 0.3, 1.6, depth * 0.42, mats.concrete);
+          if (height > 42) {
+            addMesh(cylinderGeo, mats.metal, group, 0, height + 4.4, 0, 0.09, 6, 0.09);
+            addBox(group, 0, height + 7.2, 0, 0.12, 0.35, 0.12, mats.lamp, false);
+          }
+        } else {
+          const floors = Math.floor((height - 1.8) / 3.2);
+          const windows = Math.max(1, Math.floor(width / 3.2));
+          for (let floor = 0; floor < floors; floor++) {
+            const y = 2.4 + floor * 3.2;
+            for (let index = 0; index < windows; index++) {
+              const wx = (index - (windows - 1) / 2) * Math.min(3.1, width / windows);
+              addBox(group, wx, y, frontZ, 1.05, 1.35, 0.09, mats.window, false);
+            }
+          }
+        }
+        addBox(group, 0, 1.15, frontZ + 0.02, Math.min(4.5, width * 0.55), 2.3, 0.16, mats.glass, false);
+        addBox(group, 0, 2.55, frontZ + 0.16, Math.min(width - 1, 7.5), 0.66, 0.34, name && /DINER|PIZZA|DELI|CAFE/.test(name) ? mats.gold : mats.bluePaint, false);
+        if (name) {
+          const sign = addLabel(name, "#f5d894");
+          sign.scale.set(Math.min(width * 0.78, 6), 0.9, 1);
+          sign.position.set(0, 3.05, frontZ + 0.38);
+          group.add(sign);
+        }
+        obstacles.push({ minX: x - width / 2 - 0.7, maxX: x + width / 2 + 0.7, minZ: z - depth / 2 - 0.7, maxZ: z + depth / 2 + 0.7 });
+        return group;
+      }
+
+      function addTree(x, z, scale = 1) {
+        const group = new THREE.Group();
+        group.position.set(x, 0, z);
+        scene.add(group);
+        addMesh(cylinderGeo, mats.trunk, group, 0, 1.4 * scale, 0, 0.42 * scale, 2.8 * scale, 0.42 * scale);
+        addMesh(sphereGeo, mats.leaf, group, 0, 3.35 * scale, 0, 1.45 * scale, 1.9 * scale, 1.45 * scale);
+        addMesh(sphereGeo, mats.leaf, group, -0.7 * scale, 3.0 * scale, 0.2 * scale, 0.95 * scale, 1.2 * scale, 0.95 * scale);
+        obstacles.push({ minX: x - 0.75 * scale, maxX: x + 0.75 * scale, minZ: z - 0.75 * scale, maxZ: z + 0.75 * scale });
+      }
+
+      function addStreetLamp(x, z, direction = 1) {
+        addMesh(cylinderGeo, mats.metal, scene, x, 2.55, z, 0.09, 5.1, 0.09, false);
+        addMesh(cylinderGeo, mats.metal, scene, x + direction * 0.55, 4.96, z, 0.065, 1.15, 0.065, false).rotation.z = Math.PI / 2;
+        addBox(scene, x + direction * 1.05, 4.88, z, 0.5, 0.12, 0.3, mats.metal, false);
+        addMesh(sphereGeo, mats.lamp, scene, x + direction * 1.05, 4.76, z, 0.19, 0.11, 0.19, false, false);
+        const light = new THREE.PointLight(0xe9bf7c, 5, 15, 2);
+        light.position.set(x + direction * 1.05, 4.55, z);
+        scene.add(light);
+      }
+
+      function addDustbin(x, z, rotation = 0) {
+        const bin = new THREE.Group();
+        bin.position.set(x, 0, z);
+        bin.rotation.y = rotation;
+        scene.add(bin);
+        addMesh(cylinderGeo, mats.metal, bin, 0, 0.48, 0, 0.48, 0.92, 0.48, false);
+        addMesh(cylinderGeo, mats.concrete, bin, 0, 0.96, 0, 0.55, 0.1, 0.55, false);
+        addBox(bin, 0, 0.55, -0.475, 0.28, 0.35, 0.035, mats.roof, false);
+      }
+
+      function addCar(x, z, axis, direction, speed, offset) {
+        const car = new THREE.Group();
+        const paint = new THREE.MeshStandardMaterial({
+          color: [0x526d69, 0x59606a, 0x8c4f43, 0xc1bba4, 0x33404a][traffic.length % 5],
+          metalness: 0.48,
+          roughness: 0.38
+        });
+        const glass = new THREE.MeshStandardMaterial({ color: 0x263e48, metalness: 0.28, roughness: 0.25 });
+        addBox(car, 0, 0.55, 0, 1.75, 0.58, 3.5, paint, false);
+        addBox(car, 0, 1.02, -0.12, 1.38, 0.62, 1.7, glass, false);
+        addBox(car, 0, 1.02, 0.78, 1.28, 0.55, 0.92, paint, false);
+        addBox(car, 0, 0.79, -1.78, 0.4, 0.18, 0.04, mats.headlight, false);
+        addBox(car, 0, 0.79, 1.78, 0.36, 0.16, 0.04, mats.taillight, false);
+        for (const side of [-1, 1]) {
+          for (const end of [-1, 1]) {
+            const wheel = addMesh(cylinderGeo, mats.shoe, car, side * 0.88, 0.38, end * 1.12, 0.34, 0.18, 0.34, false, false);
+            wheel.rotation.z = Math.PI / 2;
+          }
+        }
+        scene.add(car);
+        const vehicle = { object: car, axis, direction, speed, offset, position: axis === "z" ? z : x };
+        traffic.push(vehicle);
+        updateCarPosition(vehicle);
+      }
+
+      function updateCarPosition(car) {
+        if (car.axis === "z") {
+          car.object.position.set(car.offset, 0, car.position);
+          car.object.rotation.y = car.direction > 0 ? Math.PI : 0;
+        } else {
+          car.object.position.set(car.position, 0, car.offset);
+          car.object.rotation.y = car.direction > 0 ? -Math.PI / 2 : Math.PI / 2;
+        }
+      }
+
+      function getTrafficSignalStates(time) {
+        const phase = time % 24;
+        return {
+          vertical: phase < 9 ? "green" : phase < 11 ? "yellow" : phase < 12 ? "red" : phase < 21 ? "red" : phase < 23 ? "yellow" : "red",
+          horizontal: phase < 12 ? "red" : phase < 21 ? "green" : phase < 23 ? "yellow" : "red"
+        };
+      }
+
+      function setSignalHead(head, color) {
+        head.lenses.forEach((lens, index) => {
+          const active = ["red", "yellow", "green"][index] === color;
+          lens.material.emissiveIntensity = active ? 1.8 : 0.02;
+          lens.material.color.setHex(active ? lens.userData.activeColor : 0x242a2a);
+        });
+      }
+
+      function addSignalHead(x, z, direction, axis) {
+        const head = new THREE.Group();
+        head.position.set(x, 2.75, z);
+        head.rotation.y = direction;
+        scene.add(head);
+        addMesh(cylinderGeo, mats.metal, head, 0, 1.25, 0, 0.08, 2.5, 0.08, false);
+        addBox(head, 0, 2.7, 0, 0.72, 1.58, 0.52, mats.gun, false);
+        const colors = [0xe34c42, 0xf0c24c, 0x52c77c];
+        const lenses = colors.map((color, index) => {
+          const material = new THREE.MeshStandardMaterial({
+            color: 0x242a2a,
+            emissive: color,
+            emissiveIntensity: 0.02,
+            roughness: 0.35
+          });
+          const lens = addMesh(sphereGeo, material, head, 0, 3.16 - index * 0.46, -0.275, 0.17, 0.17, 0.09, false, false);
+          lens.userData.activeColor = color;
+          return lens;
+        });
+        trafficSignals.push({ axis, lenses });
+      }
+
+      function addTrafficSignals() {
+        for (const x of [-36, 0, 36]) {
+          for (const z of [-36, 0, 36]) {
+            addSignalHead(x - 6, z + 6, 0, "vertical");
+            addSignalHead(x + 6, z - 6, Math.PI, "vertical");
+            addSignalHead(x + 6, z + 6, -Math.PI / 2, "horizontal");
+            addSignalHead(x - 6, z - 6, Math.PI / 2, "horizontal");
+          }
+        }
+      }
+
+      function updateTrafficSignals(time) {
+        const states = getTrafficSignalStates(time);
+        for (const signal of trafficSignals) setSignalHead(signal, states[signal.axis]);
+      }
+
+      function updateTraffic(delta) {
+        if (beachEnding) return;
+        const states = getTrafficSignalStates(clock.elapsedTime);
+        for (const car of traffic) {
+          const axisState = states[car.axis === "z" ? "vertical" : "horizontal"];
+          let nextPosition = car.position + car.direction * car.speed * delta;
+          if (axisState !== "green") {
+            const crossings = car.axis === "z" ? [-36, 0, 36] : [-36, 0, 36];
+            for (const crossing of crossings) {
+              const distance = car.direction * (crossing - car.position);
+              const nextDistance = car.direction * (crossing - nextPosition);
+              const isOnCrossingRoad = Math.abs(car.offset - crossing) < 5;
+              if (!isOnCrossingRoad || distance < 4 || distance > 8 || nextDistance > 4) continue;
+              nextPosition = crossing - car.direction * 4;
+              break;
+            }
+          }
+          car.position = nextPosition;
+          if (car.position > 72) car.position = -72;
+          else if (car.position < -72) car.position = 72;
+          updateCarPosition(car);
+        }
+      }
+
+      function addStreetDetails() {
+        const lampSpots = [
+          [-30,-47,1],[-6,-43,-1],[30,-42,1],[-30,8,1],[30,8,-1],[-43,28,1],[7,43,-1],[43,-6,-1],[-8,67,1],[66,8,-1],
+          [-30,-4,1],[30,-4,-1],[-6,29,1],[6,-29,-1],[-43,-20,1],[43,20,-1],[-30,44,1],[30,-44,-1],[-8,57,-1],[8,-57,1]
+        ];
+        lampSpots.forEach(([x, z, direction]) => addStreetLamp(x, z, direction));
+
+        [
+          [-42,-26,0],[-28,10,Math.PI / 2],[8,27,0],[28,-10,Math.PI / 2],
+          [-42,26,0],[42,-26,Math.PI / 2],[-8,-58,0],[8,58,Math.PI / 2],
+          [-28,58,0],[28,-58,Math.PI / 2],[-42,4,0],[42,-4,Math.PI / 2]
+        ].forEach(([x, z, rotation]) => addDustbin(x, z, rotation));
+
+        [[-27,-9],[28,-20],[28,24],[-20,24],[0,-58]].forEach(([x, z]) => {
+          addBox(scene, x + 1.7, 0.55, z + 1.4, 2.6, 1.1, 0.95, mats.metal);
+          addBox(scene, x + 1.7, 1.15, z + 1.4, 1.6, 0.15, 0.68, mats.concrete);
+        });
+        for (const [x, z] of [
+          [-45,-12],[-45,12],[44,-20],[44,18],[-18,-46],[18,46],
+          [-30,-51],[-30,-20],[-30,20],[-30,51],[30,-51],[30,-20],[30,20],[30,51],
+          [-43,-30],[43,30],[-7,-31],[7,31]
+        ]) addTree(x, z, 0.85);
+      }
+
+      function addTraffic() {
+        const roads = [-36, 0, 36];
+        roads.forEach((road, index) => {
+          addCar(road - 2.1, -64 + index * 29, "z", 1, 7.1 + index * 0.35, road - 2.1);
+          addCar(road + 2.1, 63 - index * 31, "z", -1, 6.4 + index * 0.4, road + 2.1);
+          addCar(-63 + index * 31, road + 2.1, "x", 1, 6.7 + index * 0.3, road + 2.1);
+          addCar(64 - index * 29, road - 2.1, "x", -1, 7.2 + index * 0.25, road - 2.1);
+        });
+        addTrafficSignals();
+      }
+
+      function addAlleys() {
+        const alleys = [
+          [-33,-17,18,3.2], [33,-17,18,3.2], [-33,17,18,3.2], [33,17,18,3.2],
+          [-17,-33,3.2,18], [17,-33,3.2,18], [-17,33,3.2,18], [17,33,3.2,18]
+        ];
+        alleys.forEach(([x, z, width, depth], index) => {
+          addBox(scene, x, 0.012, z, width, 0.025, depth, mats.asphalt, false);
+          addBox(scene, x, 0.03, z, width * 0.58, 0.012, 0.08, mats.metal, false);
+          const endX = x + (index % 2 === 0 ? 1 : -1) * width * 0.34;
+          const endZ = z + (index % 2 === 0 ? -1 : 1) * depth * 0.34;
+          addBox(scene, endX, 0.48, endZ, 1.4, 0.96, 0.88, mats.metal);
+          addBox(scene, endX, 0.99, endZ, 1.48, 0.08, 0.94, mats.roof);
+        });
+      }
+
+      function createHumanRig(parent, clothing) {
+        const torsoMaterial = mats[clothing];
+        const capsule = (radius, length) => new THREE.CapsuleGeometry(radius, length, 5, 12);
+        const human = new THREE.Group();
+        parent.add(human);
+
+        addMesh(cylinderGeo, mats.skin, human, 0, 1.53, 0, 0.13, 0.26, 0.13);
+        addMesh(capsule(0.31, 0.54), torsoMaterial, human, 0, 1.31, 0, 1, 1, 0.79);
+        addMesh(sphereGeo, torsoMaterial, human, 0, 1.55, 0, 0.4, 0.18, 0.28);
+        addMesh(capsule(0.24, 0.12), mats.pants, human, 0, 0.91, 0, 1, 1, 0.78);
+        addBox(human, 0, 0.96, 0, 0.51, 0.07, 0.33, mats.metal);
+
+        const head = new THREE.Group();
+        head.position.set(0, 1.79, 0);
+        human.add(head);
+        addMesh(sphereGeo, mats.skin, head, 0, 0.17, 0, 0.235, 0.29, 0.225);
+        addMesh(sphereGeo, mats.hair, head, 0, 0.34, 0.025, 0.24, 0.16, 0.235);
+        addMesh(sphereGeo, mats.hair, head, -0.205, 0.21, 0.015, 0.065, 0.15, 0.085);
+        addMesh(sphereGeo, mats.hair, head, 0.205, 0.21, 0.015, 0.065, 0.15, 0.085);
+        addMesh(sphereGeo, mats.skin, head, 0, 0.105, -0.214, 0.045, 0.065, 0.052);
+        addMesh(sphereGeo, mats.hair, head, 0, 0.04, -0.17, 0.14, 0.105, 0.09);
+        for (const side of [-1, 1]) {
+          addMesh(sphereGeo, mats.skin, head, side * 0.235, 0.16, 0.005, 0.052, 0.075, 0.055);
+          addMesh(sphereGeo, mats.shoe, head, side * 0.083, 0.2, -0.205, 0.022, 0.026, 0.014, false);
+        }
+
+        const arms = [];
+        for (const side of [-1, 1]) {
+          const shoulder = new THREE.Group();
+          shoulder.position.set(side * 0.39, 1.52, 0);
+          human.add(shoulder);
+          addMesh(capsule(0.115, 0.34), torsoMaterial, shoulder, 0, -0.22, 0, 1, 1, 1);
+          addMesh(sphereGeo, torsoMaterial, shoulder, 0, -0.42, 0, 0.12, 0.12, 0.12);
+          const elbow = new THREE.Group();
+          elbow.position.y = -0.42;
+          shoulder.add(elbow);
+          addMesh(capsule(0.09, 0.28), torsoMaterial, elbow, 0, -0.19, 0, 1, 1, 1);
+          addMesh(sphereGeo, mats.skin, elbow, 0, -0.41, -0.015, 0.095, 0.105, 0.095);
+          const armRig = { upper: shoulder, lower: elbow, side };
+          if (side === 1) {
+            const gunModel = new THREE.Group();
+            gunModel.position.set(0, -0.39, -0.13);
+            elbow.add(gunModel);
+            addBox(gunModel, 0, 0, -0.12, 0.1, 0.12, 0.32, mats.gun);
+            addBox(gunModel, 0, -0.1, -0.025, 0.075, 0.15, 0.09, mats.gun);
+            addBox(gunModel, 0, 0.045, -0.04, 0.075, 0.035, 0.1, mats.metal);
+            armRig.gunModel = gunModel;
+          }
+          arms.push(armRig);
+
+          const leg = new THREE.Group();
+          leg.position.set(side * 0.145, 0.88, 0);
+          human.add(leg);
+          addMesh(capsule(0.145, 0.34), mats.pants, leg, 0, -0.25, 0, 1, 1, 1);
+          addMesh(sphereGeo, mats.pants, leg, 0, -0.44, 0, 0.145, 0.14, 0.145);
+          const knee = new THREE.Group();
+          knee.position.y = -0.44;
+          leg.add(knee);
+          addMesh(capsule(0.105, 0.28), mats.pants, knee, 0, -0.23, 0, 1, 1, 1);
+          const foot = addMesh(sphereGeo, mats.shoe, knee, 0, -0.43, -0.09, 0.135, 0.095, 0.24);
+          foot.rotation.x = -0.12;
+          if (!human.userData.legs) human.userData.legs = [];
+          human.userData.legs.push({ upper: leg, lower: knee, side });
+        }
+
+        if (clothing === "agent" || clothing === "police") {
+          addMesh(cylinderGeo, mats.shirtLight, human, 0, 1.44, -0.25, 0.055, 0.35, 0.035);
+          addBox(human, 0.24, 1.45, -0.285, 0.1, 0.12, 0.025, mats.gold, false);
+        }
+
+        return { human, head, arms, legs: human.userData.legs, phase: Math.random() * Math.PI * 2, blend: 0 };
+      }
+
+      function animateHuman(rig, moving, running, delta, attack = 0) {
+        const target = moving ? 1 : 0;
+        rig.blend += (target - rig.blend) * (1 - Math.exp(-9 * delta));
+        if (moving) rig.phase += delta * (running ? 11 : 7.5);
+        const swing = Math.sin(rig.phase) * 0.52 * rig.blend;
+        rig.human.position.y = Math.abs(Math.cos(rig.phase)) * 0.045 * rig.blend;
+        rig.human.rotation.z = Math.cos(rig.phase) * 0.025 * rig.blend;
+        rig.head.rotation.x = moving ? -0.025 : 0;
+        rig.arms.forEach(arm => {
+          arm.upper.rotation.x = swing * arm.side;
+          arm.upper.rotation.z = arm.side * (0.04 + rig.blend * 0.025);
+          arm.lower.rotation.x = -0.12 - Math.max(0, swing * arm.side) * 0.38;
+        });
+        rig.legs.forEach(leg => {
+          const legSwing = swing * -leg.side;
+          leg.upper.rotation.x = legSwing;
+          leg.lower.rotation.x = Math.max(0, -legSwing) * 0.72;
+        });
+        if (attack > 0) {
+          const rightArm = rig.arms.find(arm => arm.side === 1);
+          if (rightArm) {
+            rightArm.upper.rotation.x = THREE.MathUtils.lerp(rightArm.upper.rotation.x, 1.15, attack);
+            rightArm.lower.rotation.x = THREE.MathUtils.lerp(rightArm.lower.rotation.x, -0.15, attack);
+          }
+        }
+      }
+
+      function makeCharacter(name, role, x, z, clothing, labelColor = "#f4d28d", type = "person") {
+        const root = new THREE.Group();
+        root.position.set(x, 0, z);
+        scene.add(root);
+        const rig = createHumanRig(root, clothing);
+        const label = addLabel(name, labelColor);
+        label.position.set(0, 3.22, 0);
+        root.add(label);
+        const npc = {
+          root,
+          rig,
+          name,
+          role,
+          type,
+          home: new THREE.Vector3(x, 0, z),
+          phase: Math.random() * 6.28,
+          interactable: true,
+          isMoving: false,
+          health: type === "cartel" || type === "police" ? 100 : Infinity,
+          defeated: false,
+          label
+        };
+        npcs.push(npc);
+        interactables.push({ kind: "npc", name, x, z, radius: 3.25, data: npc });
+        return npc;
+      }
+
+      function setPatrolRoute(npc, points, index = 0, speed = 1) {
+        npc.patrol = points.map(([x, z]) => new THREE.Vector3(x, 0, z));
+        npc.patrolIndex = index;
+        npc.patrolSpeed = speed;
+        npc.root.position.copy(npc.patrol[index]);
+      }
+
+      function addLocation(name, x, z, color, action) {
+        const marker = new THREE.Group();
+        marker.position.set(x, 0, z);
+        scene.add(marker);
+        const glow = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.08, 8, 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.75 }));
+        glow.rotation.x = Math.PI / 2;
+        glow.position.y = 0.15;
+        marker.add(glow);
+        const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.45, 1.15, 12, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.17, side: THREE.DoubleSide }));
+        beacon.position.y = 0.8;
+        marker.add(beacon);
+        interactables.push({ kind: "object", name, x, z, radius: 2.9, data: { name, action, marker } });
+        return marker;
+      }
+
+      function buildWorld() {
+        addGround();
+        const blocks = [
+          [-50,-50,12,12,27,"brick","LOOP DINER"],[-16,-51,12,13,48,"stucco"],[16,-51,13,12,61,"concrete"],[51,-50,12,12,35,"brick","CHICAGO DELI"],
+          [-50,-16,13,12,24,"stucco","PIZZA & GRILL"],[50,-16,12,13,53,"bluePaint"],
+          [50,16,13,12,42,"brick","CAFE 66"],
+          [-50,50,12,12,34,"brick"],[-16,50,12,12,68,"bluePaint"],[16,50,12,12,45,"stucco"],[50,50,12,12,58,"concrete"],
+          [-17,-17,10,10,12,"brick"],[17,-17,10,10,22,"stucco"],[-17,17,10,10,18,"bluePaint"],[17,17,10,10,26,"concrete"]
+        ];
+        blocks.forEach(([x,z,w,d,h,mat,name]) => addBuilding(x,z,w,d,h,mats[mat],name));
+        [
+          [-91,-66,18,18,62,"glass"],[-91,-18,18,18,48,"concrete"],[-91,34,18,18,74,"bluePaint"],
+          [91,-40,18,18,68,"concrete"],[91,10,18,18,52,"glass"],[91,62,18,18,82,"brick"],
+          [-45,-96,18,18,56,"concrete"],[8,-96,18,18,78,"bluePaint"],[58,-96,18,18,60,"glass"],
+          [-62,96,18,18,65,"brick"],[-8,96,18,18,52,"glass"],[48,96,18,18,76,"concrete"]
+        ].forEach(([x,z,w,d,h,mat]) => addBuilding(x,z,w,d,h,mats[mat]));
+        addBuilding(-27, -11, 12, 10, 7, mats.brick, "MATEO'S");
+        addBuilding(-50, 16, 12, 13, 12, mats.concrete, "NIGHT ARMORY");
+        addBuilding(27, -22, 12, 10, 6, mats.stucco, "CLINICA");
+        addBuilding(27, 24, 12, 10, 7, mats.bluePaint, "LAVANDERIA");
+        addBuilding(-22, 25, 12, 10, 5, mats.concrete, "SAFE HOUSE");
+        addBuilding(0, -59, 15, 9, 8, mats.stucco, "FEDERAL ANNEX");
+        addStreetDetails();
+        addAlleys();
+        addTraffic();
+
+        addMesh(new THREE.CylinderGeometry(2.4, 2.4, 0.15, 20), mats.concrete, scene, 0, 0.06, -54);
+        playerRig = createHumanRig(player, "player");
+        const facingShape = new THREE.Shape();
+        facingShape.moveTo(-0.15, 0);
+        facingShape.lineTo(-0.15, 0.31);
+        facingShape.lineTo(-0.34, 0.31);
+        facingShape.lineTo(0, 0.76);
+        facingShape.lineTo(0.34, 0.31);
+        facingShape.lineTo(0.15, 0.31);
+        facingShape.lineTo(0.15, 0);
+        facingShape.closePath();
+        const facingMarker = new THREE.Mesh(
+          new THREE.ShapeGeometry(facingShape),
+          new THREE.MeshBasicMaterial({ color: 0xffd06f, side: THREE.DoubleSide, depthTest: false })
+        );
+        facingMarker.rotation.x = -Math.PI / 2;
+        facingMarker.position.y = 2.7;
+        facingMarker.renderOrder = 5;
+        player.add(facingMarker);
+        player.position.set(0, 0, 18);
+        scene.add(player);
+
+        makeCharacter("Mateo", "Mechanic · old friend", -25, -3, "contact", "#f0ca82");
+        makeCharacter("Rico", "Night Armory · weapons dealer", -50, 25, "contact", "#f0ca82", "vendor");
+        makeCharacter("Marisol", "Diner cook", 23, -14, "civilian", "#9bd8c7");
+        makeCharacter("Rosa", "Neighborhood organizer", 35, 32, "civilian", "#f0ca82");
+        makeCharacter("Attorney", "Local attorney", 0, -53, "civilian", "#9bc5e4");
+        const watcher = makeCharacter("Lookout", "Cartel lookout", -7, 7, "cartel", "#f08c7e", "cartel");
+        setPatrolRoute(watcher, [[-7, 7], [7, 7], [7, -7], [-7, -7]], 0, 1.1);
+        const officer = makeCharacter("Officer", "Police patrol", 7, -7, "police", "#9bc5e4", "police");
+        setPatrolRoute(officer, [[7, -7], [-7, -7], [-7, 7], [7, 7]], 0, 1.15);
+        const lucia = makeCharacter("Lucia", "Night-shift cook", -43, -29, "civilian", "#d9d4a0", "civilian");
+        setPatrolRoute(lucia, [[-43, -29], [-29, -29], [-29, -43], [-43, -43]], 0, 0.9);
+        const tomas = makeCharacter("Tomas", "Street vendor", 43, 29, "civilian", "#d9d4a0", "civilian");
+        setPatrolRoute(tomas, [[43, 29], [29, 29], [29, 43], [43, 43]], 0, 0.95);
+        const walker = makeCharacter("Asha", "Pedestrian", -7, -29, "civilian", "#d9d4a0", "civilian");
+        setPatrolRoute(walker, [[-7, -29], [-29, -29], [-29, -7], [-7, -7]], 0, 0.85);
+        const walkerTwo = makeCharacter("Luis", "Pedestrian", 7, 29, "civilian", "#d9d4a0", "civilian");
+        setPatrolRoute(walkerTwo, [[7, 29], [29, 29], [29, 7], [7, 7]], 0, 0.9);
+
+        addLocation("Night Armory", -50, 25, 0xe6bd68, "shop");
+        addLocation("Casa Realty", 36, 34, 0x8dd3c3, "homes");
+        campaignChapters.forEach((chapter, chapterIndex) => {
+          chapter.missions.forEach((mission, missionIndex) => {
+            mission.steps.forEach((step, stepIndex) => {
+              const marker = addLocation(step.name, step.x, step.z, step.mode === "kill" ? 0xe77a6d : 0xe6bd68, "campaign");
+              const item = interactables[interactables.length - 1];
+              item.data.campaign = { chapterIndex, missionIndex, stepIndex };
+              marker.visible = false;
+            });
+          });
+        });
+      }
+
+      buildWorld();
+      loading.classList.add("hidden");
+
+      function collides(x, z) {
+        if (Math.abs(x) > 70 || Math.abs(z) > 70) return true;
+        return obstacles.some(box => x > box.minX && x < box.maxX && z > box.minZ && z < box.maxZ);
+      }
+
+      function showToast(message) {
+        const el = document.getElementById("toast");
+        el.textContent = message;
+        toastTimer = 4;
+      }
+
+      function setObjective(title, text) {
+        state.objectiveTitle = title;
+        state.objective = text;
+        document.getElementById("objective-title").textContent = title;
+        document.getElementById("objective-text").textContent = text;
+      }
+
+      function currentMission() {
+        return campaignChapters[state.chapter - 1].missions[state.missionIndex];
+      }
+
+      function updateCampaignMarkers() {
+        for (const item of interactables) {
+          if (item.kind !== "object" || !item.data.campaign) continue;
+          const target = item.data.campaign;
+          item.data.marker.visible = state.started && state.missionStarted && !state.awaitingHome &&
+            target.chapterIndex === state.chapter - 1 &&
+            target.missionIndex === state.missionIndex &&
+            target.stepIndex === state.missionStep &&
+            !state.enemySpawned;
+        }
+      }
+
+      function updateCampaignHud() {
+        const chapter = campaignChapters[state.chapter - 1];
+        document.getElementById("chapter-label").textContent = `CHAPTER ${state.chapter} · ${chapter.title.toUpperCase()}`;
+        const missionNumber = state.missionIndex + 1;
+        const missionTotal = chapter.missions.length;
+        document.getElementById("mission-count").textContent = `${Math.min(missionNumber, missionTotal)} / ${missionTotal}`;
+        updateCampaignMarkers();
+      }
+
+      function setCurrentCampaignObjective() {
+        const mission = currentMission();
+        const step = mission.steps[state.missionStep];
+        setObjective(`${mission.title} · ${state.missionStep + 1}/${mission.steps.length}`, step.task);
+        updateCampaignHud();
+      }
+
+      function startCampaignMission() {
+        state.missionStarted = true;
+        state.missionStep = 0;
+        state.enemySpawned = false;
+        setCurrentCampaignObjective();
+        showToast(`Job accepted: ${currentMission().title}.`);
+      }
+
+      function completeCampaignStep() {
+        const mission = currentMission();
+        state.enemySpawned = false;
+        state.missionStep += 1;
+        if (state.missionStep < mission.steps.length) {
+          setCurrentCampaignObjective();
+          return;
+        }
+
+        state.credits += mission.reward;
+        state.missionIndex += 1;
+        state.missionStep = 0;
+        state.missionStarted = true;
+        updateStatus();
+        if (state.chapter === 1 && state.missionIndex === campaignChapters[0].missions.length) {
+          state.awaitingHome = true;
+          setObjective("Chapter 1 complete · Choose a home", "Visit Casa Realty and buy one of the five homes to begin your civilian life.");
+          showToast(`Cartel trust earned. +$${mission.reward}. Choose a home to leave the crew.`);
+        } else if (state.missionIndex >= campaignChapters[state.chapter - 1].missions.length) {
+          if (state.chapter === 2) {
+            state.chapter = 3;
+            state.missionIndex = 0;
+            state.missionStarted = true;
+            setCurrentCampaignObjective();
+            showToast(`Civilian work complete. +$${mission.reward}. Hector is the last one standing.`);
+          } else {
+            finishGame(true);
+            return;
+          }
+        } else {
+          setCurrentCampaignObjective();
+          showToast(`Mission complete: ${mission.title}. +$${mission.reward}.`);
+        }
+        updateCampaignHud();
+      }
+
+      function updateStatus() {
+        [["health", state.health], ["heat", state.heat], ["police", state.police]].forEach(([key, value]) => {
+          document.getElementById(`${key}-value`).textContent = `${Math.round(value)}%`;
+          document.getElementById(`${key}-fill`).style.width = `${value}%`;
+        });
+        document.getElementById("credits-value").textContent = Math.floor(state.credits);
+        document.getElementById("weapon-status").textContent = state.weapon
+          ? `${weaponCatalog[state.weapon].name} · ${state.ammo} / ${state.reserve}`
+          : "Unarmed · visit the armory";
+        playerRig?.arms.forEach(arm => {
+          if (arm.gunModel) arm.gunModel.visible = Boolean(state.weapon);
+        });
+        document.getElementById("home-status").textContent = state.home || "None";
+      }
+
+      function updateMinimap() {
+        const canvas = document.getElementById("map");
+        const ctx = canvas.getContext("2d");
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = "#192422";
+        ctx.fillRect(0, 0, w, h);
+        const sx = w / 145, sz = h / 145;
+        const px = v => w / 2 + v * sx;
+        const pz = v => h / 2 + v * sz;
+        ctx.fillStyle = "#515955";
+        for (const a of [-36, 0, 36]) {
+          ctx.fillRect(px(a - 4.75), 0, 9.5 * sx, h);
+          ctx.fillRect(0, pz(a - 4.75), w, 9.5 * sz);
+        }
+        ctx.strokeStyle = "#bdab70";
+        ctx.lineWidth = 1;
+        for (const a of [-36, 0, 36]) {
+          for (let z = -70; z < 70; z += 11) { ctx.beginPath(); ctx.moveTo(px(a), pz(z)); ctx.lineTo(px(a), pz(z + 4)); ctx.stroke(); }
+          for (let x = -70; x < 70; x += 11) { ctx.beginPath(); ctx.moveTo(px(x), pz(a)); ctx.lineTo(px(x + 4), pz(a)); ctx.stroke(); }
+        }
+        const dot = (x, z, color, size = 6) => {
+          ctx.fillStyle = color;
+          ctx.fillRect(Math.round(px(x) - size / 2), Math.round(pz(z) - size / 2), size, size);
+        };
+        dot(-50, 25, "#e6bd68", 5);
+        dot(36, 34, "#8dd3c3", 4);
+        for (const item of interactables) {
+          if (item.kind === "object" && item.data.campaign && item.data.marker.visible) dot(item.x, item.z, "#e6bd68", 5);
+        }
+        for (const npc of npcs) if (npc.type === "cartel") dot(npc.root.position.x, npc.root.position.z, "#ef796d", 3);
+        for (const npc of npcs) if (npc.type === "police") dot(npc.root.position.x, npc.root.position.z, "#84a8e8", 3);
+        const cx = px(player.position.x), cy = pz(player.position.z);
+        const tipX = cx + Math.sin(yaw) * 9, tipY = cy - Math.cos(yaw) * 9;
+        const sideX = Math.cos(yaw) * 5, sideY = Math.sin(yaw) * 5;
+        ctx.fillStyle = "#fff0a8";
+        ctx.beginPath();
+        ctx.moveTo(Math.round(tipX), Math.round(tipY));
+        ctx.lineTo(Math.round(cx + sideX), Math.round(cy + sideY));
+        ctx.lineTo(Math.round(cx - sideX), Math.round(cy - sideY));
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function getNearby() {
+        let closest = null, best = Infinity;
+        for (const item of interactables) {
+          if (item.kind === "npc" && !item.data.interactable) continue;
+          if (item.kind === "object" && item.data.campaign && !item.data.marker.visible) continue;
+          const x = item.kind === "npc" ? item.data.root.position.x : item.x;
+          const z = item.kind === "npc" ? item.data.root.position.z : item.z;
+          const distance = Math.hypot(player.position.x - x, player.position.z - z);
+          if (distance < item.radius && distance < best) { closest = item; best = distance; }
+        }
+        return closest;
+      }
+
+      const dialogues = {
+        Mateo: {
+          role: "MECHANIC · CARTEL CONTACT",
+          text: "You want a place at the table? Start with a simple run. Ten jobs, no questions, and the crew will call you one of their own.",
+          options: [{ title: "Accept the first job", detail: "Begin Chapter 1: earn the cartel's trust.", action: "start-campaign" }]
+        },
+        default: {
+          role: "CONTACT",
+          text: "Keep your head down and stay focused on the job.",
+          options: [{ title: "Move on", detail: "Return to the street.", action: "leave" }]
+        }
+      };
+
+      function openDialogue(item) {
+        activeDialogue = true;
+        lastInteractable = item;
+        const person = item.kind === "npc" ? item.data : null;
+        const key = person ? person.name : item.data.action;
+        const config = dialogues[key] || dialogues.default;
+        if (item.kind === "object" && item.data.campaign) {
+          const mission = currentMission();
+          const step = mission.steps[state.missionStep];
+          const label = step.mode === "kill" ? "Confront target" : "Complete task";
+          showDialogueConfig({
+            role: `CHAPTER ${state.chapter} · ${mission.title.toUpperCase()}`,
+            name: step.name,
+            text: `${mission.description} ${step.task}`,
+            options: [{ title: label, detail: step.mode === "kill" ? "Start the confrontation. Defeat the target to finish this step." : "Complete this job step and continue.", action: "campaign-target" }]
+          });
+        } else if (key === "homes") {
+          showHomesDialogue();
+        } else if (key === "shop" || person?.type === "vendor") {
+          showShopDialogue();
+        } else {
+          const options = key === "Mateo" && !state.missionStarted
+            ? config.options
+            : [{ title: "Move on", detail: "Return to the street.", action: "leave" }];
+          showDialogueConfig({ ...config, name: person?.name || "Contact", options });
+        }
+      }
+
+      function showHomesDialogue(message = "Choose one home. Every option is available once you have the cash.") {
+        const options = homeCatalog.map(home => ({
+          title: `Buy ${home.name} — $${home.price}`,
+          detail: `${home.description} ${state.credits < home.price ? `Need $${home.price - Math.floor(state.credits)} more.` : ""}`,
+          action: `buy-home-${home.id}`
+        }));
+        options.push({ title: "Not now", detail: "Return to the street.", action: "leave" });
+        showDialogueConfig({
+          role: state.awaitingHome ? "CHAPTER 1 COMPLETE · PROPERTY" : "PROPERTY",
+          name: "Casa Realty",
+          text: state.awaitingHome ? message : "Finish all ten cartel jobs to purchase a home and start your civilian life.",
+          options
+        });
+      }
+
+      function showShopDialogue(message = "Cash only. Pick a tool, check your remaining credits, and keep it concealed around the patrols.") {
+        const options = Object.entries(weaponCatalog).map(([id, weapon]) => ({
+          title: `Buy ${weapon.name} — $${weapon.price}`,
+          detail: `${weapon.damage} damage · ${weapon.magazine}-round magazine · includes ${weapon.reserve} reserve rounds.`,
+          action: `buy-${id}`
+        }));
+        options.push({
+          title: "Buy ammunition — $35",
+          detail: state.weapon ? `Add 24 rounds for the ${weaponCatalog[state.weapon].name}.` : "Purchase a weapon first.",
+          action: "buy-ammo"
+        });
+        options.push({ title: "Leave shop", detail: "Return to the street.", action: "leave" });
+        showDialogueConfig({
+          role: `NIGHT ARMORY · CASH $${Math.floor(state.credits)}`,
+          name: "Rico's Gun Shop",
+          text: message,
+          options
+        });
+      }
+
+      function showDialogueConfig(config) {
+        document.getElementById("dialogue-role").textContent = config.role;
+        document.getElementById("dialogue-name").textContent = config.name;
+        document.getElementById("dialogue-text").textContent = config.text;
+        const container = document.getElementById("dialogue-options");
+        container.replaceChildren();
+        config.options.forEach(option => {
+          const button = document.createElement("button");
+          button.className = "dialogue-option";
+          button.type = "button";
+          button.innerHTML = `<strong>${option.title}</strong><span>${option.detail}</span>`;
+          button.addEventListener("click", () => handleDialogueAction(option.action));
+          container.appendChild(button);
+        });
+        document.getElementById("dialogue-wrap").classList.remove("hidden");
+        container.querySelector("button")?.focus();
+      }
+
+      function closeDialogue() {
+        activeDialogue = false;
+        document.getElementById("dialogue-wrap").classList.add("hidden");
+      }
+
+      function handleDialogueAction(action) {
+        if (action === "buy-pistol" || action === "buy-smg") {
+          const id = action.slice(4);
+          const weapon = weaponCatalog[id];
+          if (state.credits < weapon.price) {
+            showShopDialogue(`You need $${weapon.price - Math.floor(state.credits)} more for that weapon.`);
+            return;
+          }
+          state.credits -= weapon.price;
+          state.weapon = id;
+          state.ammo = weapon.magazine;
+          state.reserve = weapon.reserve;
+          showShopDialogue(`${weapon.name} purchased and loaded. You have $${Math.floor(state.credits)} left.`);
+          updateStatus();
+          return;
+        } else if (action === "buy-ammo") {
+          if (!state.weapon) {
+            showShopDialogue("Choose a weapon before buying ammunition.");
+            return;
+          }
+          if (state.credits < 35) {
+            showShopDialogue("You need $35 for an ammunition pack.");
+            return;
+          }
+          state.credits -= 35;
+          state.reserve += 24;
+          showShopDialogue(`Ammunition added. You have $${Math.floor(state.credits)} left.`);
+          updateStatus();
+          return;
+        } else if (action === "start-campaign") {
+          closeDialogue();
+          startCampaignMission();
+          return;
+        } else if (action === "campaign-target") {
+          const targetItem = lastInteractable;
+          if (!targetItem?.data.campaign || !state.missionStarted) {
+            closeDialogue();
+            return;
+          }
+          const step = currentMission().steps[state.missionStep];
+          closeDialogue();
+          if (step.mode === "kill") {
+            if (state.enemySpawned) return;
+            const enemy = makeCharacter(step.enemy, "Cartel target", step.x, step.z, "cartel", "#f08c7e", "cartel");
+            enemy.campaignTarget = true;
+            enemy.health = state.chapter === 3 ? 160 : 100;
+            state.enemySpawned = true;
+            updateCampaignMarkers();
+            setObjective(`${currentMission().title} · Target`, `Defeat ${step.enemy}.`);
+            showToast(`${step.enemy} is here. Defeat them to complete the mission.`);
+          } else {
+            showToast(step.task);
+            completeCampaignStep();
+          }
+          return;
+        } else if (action.startsWith("buy-home-")) {
+          const home = homeCatalog.find(option => `buy-home-${option.id}` === action);
+          if (!home) return;
+          if (!state.awaitingHome || state.chapter !== 1) {
+            showHomesDialogue("Finish the ten cartel jobs before choosing a home.");
+            return;
+          }
+          if (state.credits < home.price) {
+            showHomesDialogue(`You need $${home.price - Math.floor(state.credits)} more for ${home.name}.`);
+            return;
+          }
+          state.credits -= home.price;
+          state.home = home.name;
+          state.awaitingHome = false;
+          state.chapter = 2;
+          state.missionIndex = 0;
+          state.missionStep = 0;
+          state.missionStarted = true;
+          closeDialogue();
+          updateStatus();
+          setCurrentCampaignObjective();
+          showToast(`You bought ${home.name}. The cartel knows you left. Chapter 2 begins.`);
+          return;
+        } else if (action === "leave") {
+          closeDialogue();
+          return;
+        }
+        closeDialogue();
+      }
+
+      function finishGame(success) {
+        state.ended = true;
+        if (success) prepareBeachEnding();
+        document.getElementById("ending-eyebrow").textContent = success ? "THE END · CHAPTER 3" : "RUN ENDED";
+        document.getElementById("ending-title").textContent = success ? "A quiet exit." : "The chase is over.";
+        document.getElementById("ending-text").textContent = success
+          ? "Hector is gone. With the cartel behind you, you ride to the coast and stop beside your bike. The sun sinks into the water. For the first time, tomorrow belongs to you."
+          : "The cartel or the police caught up before you could get clear.";
+        document.getElementById("ending-screen").classList.remove("hidden");
+      }
+
+      function prepareBeachEnding() {
+        beachEnding = true;
+        for (const child of scene.children) {
+          if (child !== player && !child.isLight) child.visible = false;
+        }
+        scene.background = new THREE.Color(0xd58d72);
+        scene.fog.color.set(0xd58d72);
+        scene.fog.near = 80;
+        scene.fog.far = 220;
+        for (const light of scene.children) {
+          if (light.isLight) light.intensity *= 0.62;
+        }
+
+        const beach = new THREE.Group();
+        scene.add(beach);
+        const sand = new THREE.Mesh(
+          new THREE.PlaneGeometry(180, 90),
+          new THREE.MeshStandardMaterial({ color: 0xc3a17a, roughness: 1 })
+        );
+        sand.rotation.x = -Math.PI / 2;
+        sand.position.set(0, -0.12, 28);
+        beach.add(sand);
+        const water = new THREE.Mesh(
+          new THREE.PlaneGeometry(180, 100),
+          new THREE.MeshStandardMaterial({ color: 0x375d68, roughness: 0.35, metalness: 0.12 })
+        );
+        water.rotation.x = -Math.PI / 2;
+        water.position.set(0, -0.08, -67);
+        beach.add(water);
+        const sun = new THREE.Mesh(
+          new THREE.SphereGeometry(5.5, 24, 16),
+          new THREE.MeshBasicMaterial({ color: 0xffc47a })
+        );
+        sun.position.set(-15, 13, -95);
+        beach.add(sun);
+
+        const bike = new THREE.Group();
+        const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x202728, roughness: 0.85 });
+        const frameMaterial = new THREE.MeshStandardMaterial({ color: 0x252f30, metalness: 0.55, roughness: 0.4 });
+        for (const x of [0.1, 1.85]) {
+          const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.07, 8, 24), wheelMaterial);
+          wheel.rotation.y = Math.PI / 2;
+          wheel.position.set(x, 0.56, 0);
+          bike.add(wheel);
+        }
+        const tube = (start, end, radius = 0.055) => {
+          const a = new THREE.Vector3(...start);
+          const b = new THREE.Vector3(...end);
+          const direction = b.clone().sub(a);
+          const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, direction.length(), 8), frameMaterial);
+          mesh.position.copy(a.add(b).multiplyScalar(0.5));
+          mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+          bike.add(mesh);
+        };
+        tube([0.1,0.56,0],[0.72,1.08,0]);
+        tube([0.72,1.08,0],[1.25,0.56,0]);
+        tube([1.25,0.56,0],[0.1,0.56,0]);
+        tube([0.72,1.08,0],[1.85,0.56,0]);
+        tube([0.72,1.08,0],[0.6,1.3,0]);
+        tube([0.48,1.3,0],[0.85,1.3,0],0.07);
+        tube([1.25,0.56,0],[1.35,1.22,0]);
+        tube([1.35,1.22,0],[1.6,1.22,0]);
+        bike.position.set(2.4, 0, 9);
+        beach.add(bike);
+
+        player.position.set(0, 0, 9);
+        player.rotation.y = 0;
+        yaw = 0;
+        camera.position.set(7.5, 4.8, 18);
+        camera.lookAt(0.3, 1.35, -7);
+      }
+
+      function interact() {
+        if (activeDialogue || !state.started || state.ended) return;
+        const nearby = getNearby();
+        if (nearby) {
+          openDialogue(nearby);
+          return;
+        }
+        showToast("No one close enough to talk to. Check the minimap for contacts and locations.");
+      }
+
+      function updatePrompt() {
+        const nearby = getNearby();
+        if (nearby) {
+          const subject = nearby.kind === "npc" ? nearby.name : nearby.name;
+          document.getElementById("prompt").innerHTML = `<span class="key">E</span> Talk to ${subject}`;
+          lastInteractable = nearby;
+        } else {
+          document.getElementById("prompt").innerHTML = state.started && !activeDialogue
+            ? `<span class="key">W / S</span> Move <span class="key">A / D</span> Turn <span class="key">F</span> Punch <span class="key">Space / click</span> Fire <span class="key">R</span> Reload`
+            : "";
+        }
+      }
+
+      function eliminate(npc) {
+        npc.defeated = true;
+        npc.interactable = false;
+        npc.isMoving = false;
+        npc.label.visible = false;
+        npc.rig.human.rotation.set(Math.PI / 2, 0, 0);
+        npc.rig.human.position.y = 0.3;
+        if (npc.type === "cartel") {
+          state.heat = Math.max(0, state.heat - 12);
+          state.credits += 15;
+          showToast(`${npc.name} eliminated. +$15`);
+        } else {
+          state.police = Math.min(100, state.police + 24);
+          showToast("Officer eliminated. Police attention increased.");
+        }
+        if (npc.campaignTarget) completeCampaignStep();
+      }
+
+      function findHostile(range, minimumDot = 0.15) {
+        const directionX = Math.sin(yaw);
+        const directionZ = -Math.cos(yaw);
+        let closest = null;
+        let closestDistance = range;
+        for (const npc of npcs) {
+          if ((npc.type !== "cartel" && npc.type !== "police") || npc.defeated) continue;
+          const dx = npc.root.position.x - player.position.x;
+          const dz = npc.root.position.z - player.position.z;
+          const distance = Math.hypot(dx, dz);
+          if (distance > closestDistance || distance < 0.65) continue;
+          const forwardDot = (dx * directionX + dz * directionZ) / distance;
+          if (forwardDot < minimumDot) continue;
+          if (npc.campaignTarget) return { npc, distance };
+          if (closest?.campaignTarget) continue;
+          closest = npc;
+          closestDistance = distance;
+        }
+        return closest ? { npc: closest, distance: closestDistance } : null;
+      }
+
+      function showTracer(endX, endY, endZ) {
+        const forwardX = Math.sin(yaw), forwardZ = -Math.cos(yaw);
+        const start = new THREE.Vector3(player.position.x + forwardX * 0.55, player.position.y + 1.35, player.position.z + forwardZ * 0.55);
+        const end = new THREE.Vector3(endX, endY, endZ);
+        const line = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([start, end]),
+          new THREE.LineBasicMaterial({ color: 0xffd77e, transparent: true, opacity: 0.95 })
+        );
+        scene.add(line);
+        effects.push({ object: line, life: 0.12 });
+      }
+
+      function shoot() {
+        if (!state.started || activeDialogue || state.ended) return;
+        if (!state.weapon) {
+          showToast("Unarmed. Visit Rico at the Night Armory to buy a sidearm.");
+          return;
+        }
+        if (state.fireCooldown > 0) return;
+        if (state.ammo <= 0) {
+          showToast(state.reserve > 0 ? "Magazine empty. Press R to reload." : "Out of ammunition. Buy more at the Night Armory.");
+          return;
+        }
+
+        const weapon = weaponCatalog[state.weapon];
+        state.ammo -= 1;
+        state.fireCooldown = weapon.cooldown;
+        state.attackPose = 0.18;
+        const target = findHostile(weapon.range, 0.965);
+        const directionX = Math.sin(yaw), directionZ = -Math.cos(yaw);
+        const endDistance = target ? target.distance : weapon.range;
+        const endX = player.position.x + directionX * endDistance;
+        const endZ = player.position.z + directionZ * endDistance;
+        showTracer(endX, target ? 1.25 : 1.1, endZ);
+
+        if (!target) {
+          showToast(`Shot fired · ${state.ammo} rounds left in magazine.`);
+          return;
+        }
+
+        const npc = target.npc;
+        npc.health = Math.max(0, npc.health - weapon.damage);
+        if (npc.type === "police") state.police = Math.min(100, state.police + 18);
+        else state.heat = Math.min(100, state.heat + 5);
+        if (npc.health === 0) {
+          eliminate(npc);
+          return;
+        }
+        showToast(`${npc.name} hit · ${npc.health} health · ${state.ammo} rounds left.`);
+      }
+
+      function punch() {
+        if (!state.started || activeDialogue || state.ended || state.punchCooldown > 0) return;
+        state.punchCooldown = 0.62;
+        state.attackPose = 0.34;
+        const target = findHostile(2.3, 0.35);
+        if (!target) {
+          showToast("No hostile within reach.");
+          return;
+        }
+        const npc = target.npc;
+        npc.health = Math.max(0, npc.health - 40);
+        if (npc.type === "police") state.police = Math.min(100, state.police + 12);
+        else state.heat = Math.min(100, state.heat + 3);
+        if (npc.health === 0) {
+          eliminate(npc);
+          return;
+        }
+        showToast(`${npc.name} hit · ${npc.health} health remaining.`);
+      }
+
+      function reloadWeapon() {
+        if (!state.weapon) {
+          showToast("Visit the Night Armory to buy a weapon.");
+          return;
+        }
+        const magazineSize = weaponCatalog[state.weapon].magazine;
+        const needed = magazineSize - state.ammo;
+        if (needed <= 0) {
+          showToast("Magazine is already full.");
+          return;
+        }
+        if (state.reserve <= 0) {
+          showToast("No reserve rounds. Buy ammunition at the Night Armory.");
+          return;
+        }
+        const loaded = Math.min(needed, state.reserve);
+        state.ammo += loaded;
+        state.reserve -= loaded;
+        showToast(`Reloaded ${loaded} rounds.`);
+      }
+
+      function updatePatrols(delta, elapsed) {
+        for (const npc of npcs) {
+          npc.isMoving = false;
+          if (!npc.patrol || npc.defeated) continue;
+          const target = npc.patrol[npc.patrolIndex];
+          const dx = target.x - npc.root.position.x, dz = target.z - npc.root.position.z;
+          const distance = Math.hypot(dx, dz);
+          if (distance < 0.8) npc.patrolIndex = (npc.patrolIndex + 1) % npc.patrol.length;
+          else {
+            const speed = npc.patrolSpeed ?? (npc.type === "cartel" ? 1.25 : 0.9);
+            npc.root.position.x += dx / distance * speed * delta;
+            npc.root.position.z += dz / distance * speed * delta;
+            npc.root.rotation.y = Math.atan2(-dx, -dz);
+            npc.isMoving = true;
+          }
+          const toPlayer = Math.hypot(player.position.x - npc.root.position.x, player.position.z - npc.root.position.z);
+          if (npc.type === "cartel") {
+            if (toPlayer < 13) state.heat = Math.min(100, state.heat + delta * (toPlayer < 7 ? 4.2 : 1.6));
+            else state.heat = Math.max(0, state.heat - delta * 0.65);
+          }
+          if (npc.type === "police") {
+            if (toPlayer < 11) state.police = Math.min(100, state.police + delta * (toPlayer < 6 ? 4.6 : 1.7));
+            else state.police = Math.max(0, state.police - delta * 0.7);
+          }
+        }
+        if (state.heat >= 100 || state.police >= 100) finishGame(false);
+      }
+
+      function movePlayer(delta) {
+        state.isRunning = false;
+        if (!state.started || activeDialogue || state.ended) {
+          return false;
+        }
+        const forward = keys.has("KeyW") || keys.has("ArrowUp") || keys.has("touch-forward");
+        const back = keys.has("KeyS") || keys.has("ArrowDown") || keys.has("touch-back");
+        const left = keys.has("KeyA") || keys.has("ArrowLeft") || keys.has("touch-left");
+        const right = keys.has("KeyD") || keys.has("ArrowRight") || keys.has("touch-right");
+        const turn = (right ? 1 : 0) - (left ? 1 : 0);
+        yaw += turn * 2.4 * delta;
+        player.rotation.y = -yaw;
+
+        const f = (forward ? 1 : 0) - (back ? 1 : 0);
+        if (f === 0) return false;
+        const dx = Math.sin(yaw) * f;
+        const dz = -Math.cos(yaw) * f;
+        const runKey = keys.has("ShiftLeft") || keys.has("ShiftRight");
+        const speed = runKey ? 8.3 : 5.1;
+        const nextX = player.position.x + dx * speed * delta;
+        const nextZ = player.position.z + dz * speed * delta;
+        if (!collides(nextX, player.position.z)) player.position.x = nextX;
+        if (!collides(player.position.x, nextZ)) player.position.z = nextZ;
+        const moving = Math.hypot(player.position.x - (nextX - dx * speed * delta), player.position.z - (nextZ - dz * speed * delta)) > 0.001;
+        state.isRunning = moving && (keys.has("ShiftLeft") || keys.has("ShiftRight"));
+        if (runKey && moving) state.health = Math.max(0, state.health - delta * 0.36);
+        if (state.health <= 0) finishGame(false);
+        return moving;
+      }
+
+      function updateFacingIndicator() {
+        const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+        const index = (Math.round(yaw / (Math.PI / 4)) + directions.length) % directions.length;
+        document.getElementById("facing-direction").textContent = directions[index];
+        document.getElementById("facing-arrow").style.transform = `rotate(${yaw * 180 / Math.PI}deg)`;
+      }
+
+      function updateCamera(delta) {
+        if (beachEnding) return;
+        const distance = innerWidth < 650 ? 7.4 : 8.7;
+        const yawDelta = Math.atan2(Math.sin(yaw - cameraYaw), Math.cos(yaw - cameraYaw));
+        cameraYaw += yawDelta * (1 - Math.exp(-7 * delta));
+        const target = new THREE.Vector3(player.position.x, player.position.y + 1.8, player.position.z);
+        const offset = new THREE.Vector3(-Math.sin(cameraYaw) * distance, 3.25 + cameraPitch * 5, Math.cos(cameraYaw) * distance);
+        const desired = target.clone().add(offset);
+        camera.position.lerp(desired, 1 - Math.pow(0.001, delta));
+        camera.lookAt(target);
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const delta = Math.min(clock.getDelta(), 0.045);
+        const elapsed = clock.elapsedTime;
+        let playerMoving = false;
+        if (state.started && !state.ended) {
+          state.fireCooldown = Math.max(0, state.fireCooldown - delta);
+          state.punchCooldown = Math.max(0, state.punchCooldown - delta);
+          state.attackPose = Math.max(0, state.attackPose - delta * 3.2);
+          playerMoving = movePlayer(delta);
+          if (!activeDialogue) updatePatrols(delta, elapsed);
+          updatePrompt();
+          if (toastTimer > 0) {
+            toastTimer -= delta;
+            if (toastTimer <= 0) document.getElementById("toast").textContent = "";
+          }
+        }
+        if (playerRig) animateHuman(playerRig, playerMoving, state.isRunning, delta, state.attackPose);
+        for (const npc of npcs) animateHuman(npc.rig, state.started && npc.isMoving && !activeDialogue, npc.type === "cartel", delta);
+        updateTrafficSignals(elapsed);
+        updateTraffic(delta);
+        for (let index = effects.length - 1; index >= 0; index--) {
+          const effect = effects[index];
+          effect.life -= delta;
+          if (effect.life <= 0) {
+            scene.remove(effect.object);
+            effect.object.geometry.dispose();
+            effect.object.material.dispose();
+            effects.splice(index, 1);
+          }
+        }
+        for (const item of interactables) {
+          if (item.kind === "object") {
+            item.data.marker.children.forEach(child => {
+              if (child.geometry.type === "TorusGeometry") child.rotation.z += delta * 0.75;
+              if (child.geometry.type === "CylinderGeometry") child.position.y = 0.8 + Math.sin(elapsed * 2.1) * 0.16;
+            });
+          }
+        }
+        updateCamera(delta);
+        updateStatus();
+        updateFacingIndicator();
+        updateMinimap();
+        renderer.render(scene, camera);
+      }
+
+      function resize() {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
+        renderer.setSize(innerWidth, innerHeight);
+      }
+      addEventListener("resize", resize);
+      addEventListener("keydown", event => {
+        if (["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight","ShiftLeft","ShiftRight","Space"].includes(event.code)) event.preventDefault();
+        keys.add(event.code);
+        if (event.code === "KeyE" && !event.repeat) interact();
+        if (event.code === "KeyF" && !event.repeat) punch();
+        if (event.code === "Space" && !event.repeat) shoot();
+        if (event.code === "KeyR" && !event.repeat) reloadWeapon();
+        if (event.code === "Escape" && activeDialogue) closeDialogue();
+      });
+      addEventListener("keyup", event => keys.delete(event.code));
+      addEventListener("blur", () => keys.clear());
+      renderer.domElement.addEventListener("pointerdown", event => {
+        if (event.button === 0 && state.started && !activeDialogue) shoot();
+      });
+      document.getElementById("close-dialogue").addEventListener("click", closeDialogue);
+      document.getElementById("start-button").addEventListener("click", () => {
+        document.getElementById("title-screen").remove();
+        state.started = true;
+        cameraYaw = 0;
+        yaw = 0;
+        player.rotation.y = -yaw;
+        setObjective("Find Mateo near the market", "Talk to Mateo at the brick shop in the northwest district.");
+        updateCampaignHud();
+        showToast("Find Mateo. The minimap marks important contacts and locations.");
+      });
+      document.getElementById("restart-button").addEventListener("click", () => location.reload());
+      document.getElementById("touch-interact").addEventListener("click", interact);
+      document.getElementById("touch-punch").addEventListener("click", punch);
+      document.getElementById("touch-fire").addEventListener("click", shoot);
+      document.querySelectorAll("[data-dir]").forEach(button => {
+        const keyByDirection = {
+          forward: "touch-forward",
+          back: "touch-back",
+          left: "touch-left",
+          right: "touch-right"
+        };
+        const code = keyByDirection[button.dataset.dir];
+        button.addEventListener("pointerdown", event => { event.preventDefault(); keys.add(code); button.setPointerCapture(event.pointerId); });
+        button.addEventListener("pointerup", () => keys.delete(code));
+        button.addEventListener("pointercancel", () => keys.delete(code));
+        button.addEventListener("lostpointercapture", () => keys.delete(code));
+      });
+
+      updateCampaignHud();
+      resize();
+      updateMinimap();
+      animate();
+    })();
+  </script>
+</body>
+</html>
